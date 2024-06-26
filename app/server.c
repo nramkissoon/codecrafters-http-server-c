@@ -124,6 +124,15 @@ int main() {
             "%ld\r\n\r\n%s",
             strlen(echo), echo);
     	send(connection, response, strlen(response), 0);
+	} else if (strncmp(request.path, "/user-agent", 11) == 0) {
+		strtok(0, "\r\n");
+		strtok(0, "\r\n");
+		char *userAgent = strtok(0, "\r\n") + 12;
+		const char *format = "HTTP/1.1 200 OK\r\nContent-Type: "
+							"text/plain\r\nContent-Length: %zu\r\n\r\n%s";
+		char response[1024];
+		sprintf(response, format, strlen(userAgent), userAgent);
+		send(connection, response, sizeof(response), 0);
 	} else {
 		char not_found_404[] = "HTTP/1.1 404 Not Found\r\n\r\n";
     	send(connection, not_found_404, sizeof(not_found_404), 0);
