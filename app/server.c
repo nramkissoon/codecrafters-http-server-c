@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <stdbool.h>
 typedef uint64_t u64;
 typedef int64_t i64;
 typedef uint32_t u32;
@@ -50,6 +51,11 @@ enum http_request method_from_str(u8 *str) {
 		}
 	}
 	return -1;
+}
+
+bool startsWith(const char* pre, const char* str) {
+	size_t lenpre = strlen(pre), lenstr = strlen(str);
+	return lenstr < lenpre ? false : memcmp(pre, str, lenpre) == 0;
 }
 
 int main() {
@@ -107,6 +113,17 @@ int main() {
 	if (strcmp(request.path, "/") == 0) {
 		char ok_200[] = "HTTP/1.1 200 OK\r\n\r\n";
 		send(connection, ok_200, sizeof(ok_200), 0);
+	} else if (startsWith("/echo/", request.path)) {
+		u8 *echo = request.path + 6; // point to the char after the prefix route /echo/
+		printf("echo: %s\n", echo);
+		u32 len = strlen(echo);
+		printf("echo len: %d\n", len);
+		char response[1024];
+		sprintf(response,
+            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
+            "%ld\r\n\r\n%s",
+            strlen(echo), echo);
+    	send(connection, response, strlen(response), 0);
 	} else {
 		char not_found_404[] = "HTTP/1.1 404 Not Found\r\n\r\n";
     	send(connection, not_found_404, sizeof(not_found_404), 0);
