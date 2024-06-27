@@ -8,6 +8,10 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <pthread.h>
+
+void *handle_connection(void *pclient_socket);
+
 typedef uint64_t u64;
 typedef int64_t i64;
 typedef uint32_t u32;
@@ -58,6 +62,7 @@ bool startsWith(const char* pre, const char* str) {
 	return lenstr < lenpre ? false : memcmp(pre, str, lenpre) == 0;
 }
 
+
 int main() {
 	// Disable output buffering
 	setbuf(stdout, NULL);
@@ -90,7 +95,7 @@ int main() {
 		return 1;
 	}
 	
-	i32 connection_backlog = 5;
+	i32 connection_backlog = 10;
 	if (listen(server_fd, connection_backlog) != 0) {
 		printf("Listen failed: %s \n", strerror(errno));
 		return 1;
@@ -99,11 +104,28 @@ int main() {
 	printf("Waiting for a client to connect...\n");
 	client_addr_len = sizeof(client_addr);
 	
-	u32 connection = accept(server_fd, (struct sockaddr *) &client_addr, &client_addr_len);
-	printf("Client connected\n");
+	while (1) {
+		int client_socket =
+			accept(server_fd, (struct sockaddr* )&client_addr, &client_addr_len);
+		if (client_socket == -1)
+			continue;
+
+		pthread_t new_process;
+		int *pclient_socket = &client_socket;
+		pthread_create(&new_process, NULL, handle_connection, pclient_socket);
+  	}
+	
+	close(server_fd);
+	return 0;
+}
+
+void *handle_connection(void *pclient_socket) {
+	int connection = *((int *)pclient_socket);
 
 	u8 buffer[1024];
-  	read(connection, buffer, sizeof(buffer));
+  	if (read(connection, buffer, sizeof(buffer)) == -1)
+    	{return NULL;}
+
 
 	struct http_header request = {0};
 	request.method = method_from_str(strtok(buffer, " "));
@@ -137,9 +159,7 @@ int main() {
 		char not_found_404[] = "HTTP/1.1 404 Not Found\r\n\r\n";
     	send(connection, not_found_404, sizeof(not_found_404), 0);
 	}
-	
-	close(connection);
-	close(server_fd);
+	puts("-----------");
+	return NULL;
 
-	return 0;
 }
